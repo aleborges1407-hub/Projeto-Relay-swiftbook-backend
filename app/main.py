@@ -73,8 +73,10 @@ async def webhook(request: Request):
                 print("EVOLUTION_URL FINAL:", evolution_url)
                 print("INSTANCE:", instance_id)
                 print("URL COMPLETA:", f"{evolution_url}/message/sendText/{instance_id}")
-                print("API KEY LENGTH:", len(config['api_key_evolution']))
-                print("API KEY START:", config['api_key_evolution'][:5])
+                cfg_key = config.get('api_key_evolution', '')
+                env_key = os.environ.get("EVOLUTION_API_KEY", "")
+                print("KEY FROM CONFIG:", cfg_key[:10] if cfg_key else "None")
+                print("KEY FROM ENV:", env_key[:10] if env_key else "None")
 
                 async with httpx.AsyncClient() as client:
                     response = await client.get(
