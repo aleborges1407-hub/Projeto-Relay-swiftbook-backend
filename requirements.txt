@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+langchain
+langchain-openai
+langgraph
+langgraph-checkpoint-redis
+supabase
+twilio
+google-api-python-client
+google-auth
+pydantic
+pydantic-settings
+redis>=6.2.0
+python-dotenv
+httpx
+openai
