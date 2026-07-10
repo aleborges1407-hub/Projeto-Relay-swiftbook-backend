@@ -50,6 +50,10 @@ async def webhook(request: Request):
                     # Salva a mensagem do usuário
                     CRMService.save_message(supabase, client_id, lead_id, "user", texto)
 
+                # Busca AI Config e Memória
+                ai_config = CRMService.get_ai_config(supabase, client_id)
+                memory_messages = CRMService.get_recent_messages(supabase, client_id, lead_id, limit=20) if lead_id else []
+
                 # IA usando o agente LangGraph
                 # Executa num thread pool para não travar o FastAPI
                 reply, _ = await asyncio.to_thread(
@@ -57,8 +61,9 @@ async def webhook(request: Request):
                     phone=raw_phone,
                     user_message=texto,
                     api_key=config['openai_api_key'],
-                    system_prompt=config['system_prompt'],
-                    current_state=None # Sem memória nesta sprint
+                    ai_config=ai_config,
+                    current_state=None,
+                    memory_messages=memory_messages
                 )
                 
                 if lead_id:

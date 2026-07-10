@@ -63,3 +63,49 @@ class CRMService:
             traceback.print_exc()
         
         return None
+
+    @staticmethod
+    def get_recent_messages(supabase_client, client_id: str, lead_id: str, limit: int = 20):
+        """
+        Fetches recent messages from the database and maps them to LangChain message objects.
+        Returns them in chronological order (oldest to newest).
+        """
+        from langchain_core.messages import HumanMessage, AIMessage
+        
+        if not supabase_client:
+            return []
+        try:
+            res = supabase_client.table('messages').select('role, content').eq('client_id', client_id).eq('lead_id', lead_id).order('created_at', desc=True).limit(limit).execute()
+            if not res.data:
+                return []
+            
+            # Reverse to chronological order
+            ordered_data = list(reversed(res.data))
+            
+            messages = []
+            for msg in ordered_data:
+                if msg['role'] == 'user':
+                    messages.append(HumanMessage(content=msg['content']))
+                elif msg['role'] == 'assistant':
+                    messages.append(AIMessage(content=msg['content']))
+            return messages
+        except Exception:
+            traceback.print_exc()
+            
+        return []
+
+    @staticmethod
+    def get_ai_config(supabase_client, client_id: str):
+        """
+        Fetches the AI configuration for the specified client.
+        """
+        if not supabase_client:
+            return None
+        try:
+            res = supabase_client.table('ai_configs').select('*').eq('client_id', client_id).execute()
+            if res.data and len(res.data) > 0:
+                return res.data[0]
+        except Exception:
+            traceback.print_exc()
+            
+        return None
