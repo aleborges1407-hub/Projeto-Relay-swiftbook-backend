@@ -76,8 +76,10 @@ async def webhook(request: Request):
             else:
                 return {"status": "ok"}
         return {"status": "ok"}
-    except Exception:
-        return {"status": "ok"}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "detail": str(e)}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
