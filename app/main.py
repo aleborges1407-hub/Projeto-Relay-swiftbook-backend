@@ -33,6 +33,19 @@ async def webhook(request: Request):
 
         # TRAVA VITAL RESTAURADA: 'not from_me' evita erro 502 por loop infinito
         if texto and supabase and not from_me:
+            message_id = data.get('key', {}).get('id')
+            
+            # IDEMPOTÊNCIA: Evitar processamento duplicado do mesmo evento
+            if message_id:
+                try:
+                    supabase.table('webhook_events').insert({
+                        'message_id': message_id,
+                        'event_type': 'messages.upsert'
+                    }).execute()
+                except Exception:
+                    print(f"Mensagem duplicada ignorada: {message_id}")
+                    return {"status": "ok"}
+                    
             # Busca configs sem erro fatal (.single() retirado para evitar erro se não achar)
             res = supabase.table("clients").select("*").eq("instance_key", instance_id).execute()
             
