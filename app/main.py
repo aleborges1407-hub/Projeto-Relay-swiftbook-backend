@@ -75,11 +75,14 @@ async def webhook(request: Request):
                 print("URL COMPLETA:", f"{evolution_url}/message/sendText/{instance_id}")
 
                 async with httpx.AsyncClient() as client:
-                    await client.post(
+                    response = await client.post(
                         f"{evolution_url}/message/sendText/{instance_id}",
                         json={"number": remote_jid.split('@')[0], "text": reply},
                         headers={"apikey": config['api_key_evolution'], "Content-Type": "application/json"}
                     )
+                    
+                    print("EVOLUTION STATUS:", response.status_code)
+                    print("EVOLUTION RESPONSE:", response.text)
             else:
                 return {"status": "ok"}
         return {"status": "ok"}
