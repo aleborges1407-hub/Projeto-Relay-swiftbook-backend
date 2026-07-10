@@ -70,31 +70,12 @@ async def webhook(request: Request):
                 if evolution_url and not evolution_url.startswith("http"):
                     evolution_url = f"https://{evolution_url}"
                 
-                print("EVOLUTION_URL FINAL:", evolution_url)
-                print("INSTANCE:", instance_id)
-                print("URL COMPLETA:", f"{evolution_url}/message/sendText/{instance_id}")
-                cfg_key = config.get('api_key_evolution', '')
-                env_key = os.environ.get("EVOLUTION_API_KEY", "")
-                print("KEY FROM CONFIG:", cfg_key[:10] if cfg_key else "None")
-                print("KEY FROM ENV:", env_key[:10] if env_key else "None")
-
                 async with httpx.AsyncClient() as client:
-                    response = await client.get(
-                        evolution_url,
-                        headers={"apikey": config['api_key_evolution']}
-                    )
-                    
-                    print("EVOLUTION AUTH TEST:", response.status_code)
-                    print(response.text)
-
-                    response = await client.post(
+                    await client.post(
                         f"{evolution_url}/message/sendText/{instance_id}",
                         json={"number": remote_jid.split('@')[0], "text": reply},
-                        headers={"apikey": config['api_key_evolution'], "Content-Type": "application/json"}
+                        headers={"apikey": os.environ.get("EVOLUTION_API_KEY", ""), "Content-Type": "application/json"}
                     )
-                    
-                    print("EVOLUTION STATUS:", response.status_code)
-                    print("EVOLUTION RESPONSE:", response.text)
             else:
                 return {"status": "ok"}
         return {"status": "ok"}
