@@ -77,6 +77,14 @@ async def webhook(request: Request):
                 print("API KEY START:", config['api_key_evolution'][:5])
 
                 async with httpx.AsyncClient() as client:
+                    response = await client.get(
+                        evolution_url,
+                        headers={"apikey": config['api_key_evolution']}
+                    )
+                    
+                    print("EVOLUTION AUTH TEST:", response.status_code)
+                    print(response.text)
+
                     response = await client.post(
                         f"{evolution_url}/message/sendText/{instance_id}",
                         json={"number": remote_jid.split('@')[0], "text": reply},
