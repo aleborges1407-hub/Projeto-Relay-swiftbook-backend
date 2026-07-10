@@ -73,6 +73,8 @@ async def webhook(request: Request):
                 print("EVOLUTION_URL FINAL:", evolution_url)
                 print("INSTANCE:", instance_id)
                 print("URL COMPLETA:", f"{evolution_url}/message/sendText/{instance_id}")
+                print("API KEY LENGTH:", len(config['api_key_evolution']))
+                print("API KEY START:", config['api_key_evolution'][:5])
 
                 async with httpx.AsyncClient() as client:
                     response = await client.post(
