@@ -67,6 +67,8 @@ async def webhook(request: Request):
                 
                 # Resposta
                 evolution_url = os.environ.get("EVOLUTION_URL", "").rstrip('/')
+                if evolution_url and not evolution_url.startswith("http"):
+                    evolution_url = f"https://{evolution_url}"
                 async with httpx.AsyncClient() as client:
                     await client.post(
                         f"{evolution_url}/message/sendText/{instance_id}",
