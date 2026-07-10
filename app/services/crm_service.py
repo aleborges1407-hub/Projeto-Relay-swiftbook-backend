@@ -1,5 +1,5 @@
+import datetime
 import traceback
-
 class CRMService:
     @staticmethod
     def upsert_lead(supabase_client, client_id: str, phone: str, external_id: str = None):
@@ -8,11 +8,7 @@ class CRMService:
         Uses UQ constraint logical matching (client_id + phone).
         """
         if not supabase_client:
-            print("[CRM] Erro: Cliente Supabase nulo no serviço.")
             return None
-            
-        print(f"CLIENT_ID RECEBIDO: {client_id}")
-        print(f"TELEFONE RECEBIDO: {phone}")
             
         try:
             # 1. Busca o lead existente
@@ -21,14 +17,12 @@ class CRMService:
             if res.data and len(res.data) > 0:
                 # O Lead já existe. Apenas atualiza a última interação.
                 lead_id = res.data[0]['id']
-                import datetime
                 now_iso = datetime.datetime.utcnow().isoformat()
                 
                 update_res = supabase_client.table('leads').update({
                     'last_message_at': now_iso
                 }).eq('id', lead_id).execute()
                 
-                print(f"RESPOSTA SUPABASE (UPDATE): {update_res.data}")
                 return lead_id
             else:
                 # 2. Criação de novo lead
@@ -41,12 +35,31 @@ class CRMService:
                 }
                 insert_res = supabase_client.table('leads').insert(new_lead).execute()
                 if insert_res.data:
-                    print(f"RESPOSTA SUPABASE (INSERT): {insert_res.data}")
                     return insert_res.data[0]['id']
-                else:
-                    print(f"ERRO: Supabase não retornou dados após tentativa de inserção.")
-        except Exception as e:
-            print(f"ERRO COMPLETO: {e}")
+        except Exception:
+            traceback.print_exc()
+        
+        return None
+    
+    @staticmethod
+    def save_message(supabase_client, client_id: str, lead_id: str, role: str, content: str):
+        """
+        Saves a message to the messages table.
+        """
+        if not supabase_client:
+            return None
+            
+        try:
+            msg_data = {
+                'client_id': client_id,
+                'lead_id': lead_id,
+                'role': role,
+                'content': content
+            }
+            res = supabase_client.table('messages').insert(msg_data).execute()
+            if res.data:
+                return res.data[0]['id']
+        except Exception:
             traceback.print_exc()
         
         return None

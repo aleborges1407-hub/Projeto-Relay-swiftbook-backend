@@ -1,4 +1,3 @@
-import os
 from typing import TypedDict
 from langgraph.graph import StateGraph, END
 from langchain_openai import ChatOpenAI
@@ -13,12 +12,16 @@ class AgentState(TypedDict):
     calendar_checked: bool
     proposed_time: str
     is_confirmed: bool
-
-llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+    api_key: str
+    system_prompt: str
 
 def qualification_node(state: AgentState) -> AgentState:
     last_msg = state["messages"][-1].content
-    sys_msg = SystemMessage(content="You are an AI appointment setter for a home services company. Does the user want to schedule? Respond YES or NO.")
+    api_key = state.get("api_key")
+    system_prompt = state.get("system_prompt", "You are an AI appointment setter for a home services company. Does the user want to schedule? Respond YES or NO.")
+    
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0, api_key=api_key)
+    sys_msg = SystemMessage(content=system_prompt + " Does the user want to schedule? Respond YES or NO.")
     response = llm.invoke([sys_msg, HumanMessage(content=last_msg)])
     
     if "YES" in response.content.upper():
@@ -78,7 +81,7 @@ workflow.set_entry_point("qualify")
 
 app_graph = workflow.compile()
 
-def process_message(phone: str, user_message: str, current_state: dict = None) -> tuple[str, dict]:
+def process_message(phone: str, user_message: str, api_key: str, system_prompt: str, current_state: dict = None) -> tuple[str, dict]:
     if current_state is None:
         state = AgentState(
             phone_number=phone,
@@ -86,11 +89,15 @@ def process_message(phone: str, user_message: str, current_state: dict = None) -
             stage="new",
             calendar_checked=False,
             proposed_time="",
-            is_confirmed=False
+            is_confirmed=False,
+            api_key=api_key,
+            system_prompt=system_prompt
         )
     else:
         state = current_state
         state["messages"].append(HumanMessage(content=user_message))
+        state["api_key"] = api_key
+        state["system_prompt"] = system_prompt
         
     new_state = app_graph.invoke(state)
     res = generate_response_node(new_state)

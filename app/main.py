@@ -1,17 +1,19 @@
+import asyncio
 import os
+
 import httpx
 import uvicorn
 from fastapi import FastAPI, Request
 from supabase import create_client
-from openai import AsyncOpenAI
+
+from app.agent import process_message
 from app.services.crm_service import CRMService
 
 app = FastAPI()
 # Inicializa cliente. Se falhar na conexão, ele não trava o servidor.
 try:
     supabase = create_client(os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_SERVICE_KEY"))
-except Exception as e:
-    print(f"Erro ao inicializar Supabase: {e}")
+except Exception:
     supabase = None
 
 @app.post("/api/public/evolution-webhook")
@@ -21,8 +23,6 @@ async def webhook(request: Request):
         payload = await request.json()
         if payload.get('event') != 'messages.upsert':
             return {"status": "ok"}
-        
-        print("WEBHOOK MESSAGE RECEBIDO")
         
         data = payload.get('data', {})
         instance_id = payload.get('instance')
@@ -42,32 +42,41 @@ async def webhook(request: Request):
                 # --- INGESTAO DE LEADS (CRM) ---
                 raw_phone = remote_jid.split('@')[0] if remote_jid else "unknown"
                 client_id = config['id']
-                print("CHAMANDO CRM SERVICE")
-                # Dispara upsert silencioso
-                CRMService.upsert_lead(supabase, client_id, raw_phone, remote_jid)
+                # Dispara upsert silencioso e pega o lead_id
+                lead_id = CRMService.upsert_lead(supabase, client_id, raw_phone, remote_jid)
                 # -------------------------------
 
-                # IA
-                ia = AsyncOpenAI(api_key=config['openai_api_key'])
-                r = await ia.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[{"role": "system", "content": config['system_prompt']}, {"role": "user", "content": texto}]
+                if lead_id:
+                    # Salva a mensagem do usuário
+                    CRMService.save_message(supabase, client_id, lead_id, "user", texto)
+
+                # IA usando o agente LangGraph
+                # Executa num thread pool para não travar o FastAPI
+                reply, _ = await asyncio.to_thread(
+                    process_message,
+                    phone=raw_phone,
+                    user_message=texto,
+                    api_key=config['openai_api_key'],
+                    system_prompt=config['system_prompt'],
+                    current_state=None # Sem memória nesta sprint
                 )
+                
+                if lead_id:
+                    # Salva a resposta da IA
+                    CRMService.save_message(supabase, client_id, lead_id, "assistant", reply)
                 
                 # Resposta
                 evolution_url = os.environ.get("EVOLUTION_URL", "").rstrip('/')
                 async with httpx.AsyncClient() as client:
                     await client.post(
                         f"{evolution_url}/message/sendText/{instance_id}",
-                        json={"number": remote_jid.split('@')[0], "text": r.choices[0].message.content},
+                        json={"number": remote_jid.split('@')[0], "text": reply},
                         headers={"apikey": config['api_key_evolution'], "Content-Type": "application/json"}
                     )
             else:
-                print(f"ATENÇÃO: Nenhuma configuração encontrada para a instância {instance_id}")
                 return {"status": "ok"}
         return {"status": "ok"}
-    except Exception as e:
-        print(f"ERRO CRÍTICO NO WEBHOOK: {e}")
+    except Exception:
         return {"status": "ok"}
 
 if __name__ == "__main__":
